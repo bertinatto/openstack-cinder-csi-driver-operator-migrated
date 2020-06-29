@@ -54,7 +54,6 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		[]string{
 			"namespace.yaml",
 			"storageclass.yaml",
-			// "csidriver.yaml",
 			"controller_sa.yaml",
 			"node_sa.yaml",
 			"rbac/provisioner_binding.yaml",
@@ -74,7 +73,6 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		kubeInformersForNamespaces.InformersFor(operandNamespace),
 		csicontrollerset.WithControllerService("controller.yaml"),
 		csicontrollerset.WithNodeService("node.yaml"),
-		// csicontrollerset.WithCloudCredentials(dynamicClient, "credentials.yaml"),
 	)
 
 	if err != nil {

@@ -2,6 +2,7 @@
 // sources:
 // assets/controller.yaml
 // assets/controller_sa.yaml
+// assets/credentials.yaml
 // assets/namespace.yaml
 // assets/node.yaml
 // assets/node_sa.yaml
@@ -95,6 +96,10 @@ spec:
       containers:
         - name: csi-driver
           image: mcr.microsoft.com/k8s/csi/azuredisk-csi:latest
+          # image: centos
+          # command: ["/bin/sh"]
+          # args: ["-c", "while true; do echo $(date -u) >> /tmp/out.txt; sleep 5; done"]
+
           args:
             - "--v=5"
             - "--endpoint=$(CSI_ENDPOINT)"
@@ -115,18 +120,15 @@ spec:
             periodSeconds: 30
           env:
             - name: AZURE_CREDENTIAL_FILE
-              valueFrom:
-                configMapKeyRef:
-                  name: azure-cred-file
-                  key: path
-                  optional: true
+              value: "/etc/kubernetes/cloud.conf"
             - name: CSI_ENDPOINT
               value: unix:///csi/csi.sock
           volumeMounts:
             - mountPath: /csi
               name: socket-dir
             - mountPath: /etc/kubernetes/
-              name: azure-cred
+              readOnly: true
+              name: cloud-sa-volume
             - mountPath: /var/lib/waagent/ManagedIdentity-Settings
               readOnly: true
               name: msi
@@ -217,30 +219,29 @@ spec:
             requests:
               cpu: 10m
               memory: 20Mi
-        # - name: liveness-probe
-        #   image: mcr.microsoft.com/oss/kubernetes-csi/livenessprobe:v1.1.0
-        #   args:
-        #     - --csi-address=/csi/csi.sock
-        #     - --connection-timeout=3s
-        #     - --health-port=29602
-        #     - --v=5
-        #   volumeMounts:
-        #     - name: socket-dir
-        #       mountPath: /csi
-        #   resources:
-        #     limits:
-        #       cpu: 1
-        #       memory: 1Gi
-        #     requests:
-        #       cpu: 10m
-        #       memory: 20Mi
+        - name: liveness-probe
+          image: mcr.microsoft.com/oss/kubernetes-csi/livenessprobe:v1.1.0
+          args:
+            - --csi-address=/csi/csi.sock
+            - --connection-timeout=3s
+            - --health-port=29602
+            - --v=5
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+          resources:
+            limits:
+              cpu: 1
+              memory: 1Gi
+            requests:
+              cpu: 10m
+              memory: 20Mi
       volumes:
         - name: socket-dir
           emptyDir: {}
-        - name: azure-cred
+        - name: cloud-sa-volume
           hostPath:
             path: /etc/kubernetes/
-            type: Directory
         - name: msi
           hostPath:
             path: /var/lib/waagent/ManagedIdentity-Settings
@@ -279,6 +280,38 @@ func controller_saYaml() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "controller_sa.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _credentialsYaml = []byte(`# TODO: remove, this is not used anywhere
+apiVersion: cloudcredential.openshift.io/v1
+kind: CredentialsRequest
+metadata:
+  name: openshift-azure-disk-csi-driver
+  namespace: openshift-cloud-credential-operator
+spec:
+  secretRef:
+    name: azure-cloud-credentials
+    namespace: openshift-azure-disk-csi-driver
+  providerSpec:
+    apiVersion: cloudcredential.openshift.io/v1
+    kind: AzureProviderSpec
+    roleBindings:
+    - role: Contributor
+`)
+
+func credentialsYamlBytes() ([]byte, error) {
+	return _credentialsYaml, nil
+}
+
+func credentialsYaml() (*asset, error) {
+	bytes, err := credentialsYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "credentials.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -341,11 +374,7 @@ spec:
               protocol: TCP
           env:
             - name: AZURE_CREDENTIAL_FILE
-              valueFrom:
-                configMapKeyRef:
-                  name: azure-cred-file
-                  key: path
-                  optional: true
+              value: "/etc/kubernetes/cloud.conf"
             - name: CSI_ENDPOINT
               value: unix:///csi/csi.sock
             - name: KUBE_NODE_NAME
@@ -362,7 +391,8 @@ spec:
               mountPropagation: Bidirectional
               name: mountpoint-dir
             - mountPath: /etc/kubernetes/
-              name: azure-cred
+              readOnly: true
+              name: cloud-sa-volume
             - mountPath: /var/lib/waagent/ManagedIdentity-Settings
               readOnly: true
               name: msi
@@ -422,7 +452,7 @@ spec:
         - hostPath:
             path: /etc/kubernetes/
             type: Directory
-          name: azure-cred
+          name: cloud-sa-volume
         - hostPath:
             path: /var/lib/waagent/ManagedIdentity-Settings
           name: msi
@@ -853,8 +883,7 @@ provisioner: disk.csi.azure.com
 parameters:
   skuname: StandardSSD_LRS  # alias: storageaccounttype, available values: Standard_LRS, Premium_LRS, StandardSSD_LRS, UltraSSD_LRS
 reclaimPolicy: Delete
-volumeBindingMode: Immediate
-allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer  # make sure ` + "`" + `volumeBindingMode` + "`" + ` is set as ` + "`" + `WaitForFirstConsumer` + "`" + `
 `)
 
 func storageclassYamlBytes() ([]byte, error) {
@@ -926,6 +955,7 @@ func AssetNames() []string {
 var _bindata = map[string]func() (*asset, error){
 	"controller.yaml":                         controllerYaml,
 	"controller_sa.yaml":                      controller_saYaml,
+	"credentials.yaml":                        credentialsYaml,
 	"namespace.yaml":                          namespaceYaml,
 	"node.yaml":                               nodeYaml,
 	"node_sa.yaml":                            node_saYaml,
@@ -986,6 +1016,7 @@ type bintree struct {
 var _bintree = &bintree{nil, map[string]*bintree{
 	"controller.yaml":    {controllerYaml, map[string]*bintree{}},
 	"controller_sa.yaml": {controller_saYaml, map[string]*bintree{}},
+	"credentials.yaml":   {credentialsYaml, map[string]*bintree{}},
 	"namespace.yaml":     {namespaceYaml, map[string]*bintree{}},
 	"node.yaml":          {nodeYaml, map[string]*bintree{}},
 	"node_sa.yaml":       {node_saYaml, map[string]*bintree{}},

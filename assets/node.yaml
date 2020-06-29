@@ -35,11 +35,7 @@ spec:
               protocol: TCP
           env:
             - name: AZURE_CREDENTIAL_FILE
-              valueFrom:
-                configMapKeyRef:
-                  name: azure-cred-file
-                  key: path
-                  optional: true
+              value: "/etc/kubernetes/cloud.conf"
             - name: CSI_ENDPOINT
               value: unix:///csi/csi.sock
             - name: KUBE_NODE_NAME
@@ -56,7 +52,8 @@ spec:
               mountPropagation: Bidirectional
               name: mountpoint-dir
             - mountPath: /etc/kubernetes/
-              name: azure-cred
+              readOnly: true
+              name: cloud-sa-volume
             - mountPath: /var/lib/waagent/ManagedIdentity-Settings
               readOnly: true
               name: msi
@@ -116,7 +113,7 @@ spec:
         - hostPath:
             path: /etc/kubernetes/
             type: Directory
-          name: azure-cred
+          name: cloud-sa-volume
         - hostPath:
             path: /var/lib/waagent/ManagedIdentity-Settings
           name: msi
