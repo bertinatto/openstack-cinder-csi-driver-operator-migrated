@@ -3,9 +3,9 @@
 package fake
 
 import (
-	clientset "github.com/openshift/azure-disk-csi-driver-operator/pkg/generated/clientset/versioned"
-	csiv1alpha1 "github.com/openshift/azure-disk-csi-driver-operator/pkg/generated/clientset/versioned/typed/operator/v1alpha1"
-	fakecsiv1alpha1 "github.com/openshift/azure-disk-csi-driver-operator/pkg/generated/clientset/versioned/typed/operator/v1alpha1/fake"
+	clientset "github.com/openshift/openstack-cinder-csi-driver-operator/pkg/generated/clientset/versioned"
+	csiv1alpha1 "github.com/openshift/openstack-cinder-csi-driver-operator/pkg/generated/clientset/versioned/typed/operator/v1alpha1"
+	fakecsiv1alpha1 "github.com/openshift/openstack-cinder-csi-driver-operator/pkg/generated/clientset/versioned/typed/operator/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

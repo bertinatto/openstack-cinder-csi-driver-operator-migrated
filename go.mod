@@ -1,6 +1,6 @@
-module github.com/openshift/azure-disk-csi-driver-operator
+module github.com/openshift/openstack-cinder-csi-driver-operator
 
-go 1.13
+go 1.14
 
 require (
 	github.com/evanphx/json-patch v4.5.0+incompatible // indirect

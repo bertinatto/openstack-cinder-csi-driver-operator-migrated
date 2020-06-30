@@ -3,14 +3,14 @@
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/openshift/azure-disk-csi-driver-operator/pkg/apis/operator/v1alpha1"
-	"github.com/openshift/azure-disk-csi-driver-operator/pkg/generated/clientset/versioned/scheme"
+	v1alpha1 "github.com/openshift/openstack-cinder-csi-driver-operator/pkg/apis/operator/v1alpha1"
+	"github.com/openshift/openstack-cinder-csi-driver-operator/pkg/generated/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 
 type CsiV1alpha1Interface interface {
 	RESTClient() rest.Interface
-	AzureDiskDriversGetter
+	OpenStackCinderDriversGetter
 }
 
 // CsiV1alpha1Client is used to interact with features provided by the csi.openshift.io group.
@@ -18,8 +18,8 @@ type CsiV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *CsiV1alpha1Client) AzureDiskDrivers() AzureDiskDriverInterface {
-	return newAzureDiskDrivers(c)
+func (c *CsiV1alpha1Client) OpenStackCinderDrivers() OpenStackCinderDriverInterface {
+	return newOpenStackCinderDrivers(c)
 }
 
 // NewForConfig creates a new CsiV1alpha1Client for the given config.

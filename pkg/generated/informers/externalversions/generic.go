@@ -5,7 +5,7 @@ package externalversions
 import (
 	"fmt"
 
-	v1alpha1 "github.com/openshift/azure-disk-csi-driver-operator/pkg/apis/operator/v1alpha1"
+	v1alpha1 "github.com/openshift/openstack-cinder-csi-driver-operator/pkg/apis/operator/v1alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -37,8 +37,8 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=csi.openshift.io, Version=v1alpha1
-	case v1alpha1.SchemeGroupVersion.WithResource("azurediskdrivers"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Csi().V1alpha1().AzureDiskDrivers().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("openstackcinderdrivers"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Csi().V1alpha1().OpenStackCinderDrivers().Informer()}, nil
 
 	}
 

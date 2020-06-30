@@ -1,7 +1,7 @@
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: azure-disk-external-resizer-role
+  name: openstack-cinder-external-resizer-role
 rules:
   - apiGroups: [""]
     resources: ["persistentvolumes"]

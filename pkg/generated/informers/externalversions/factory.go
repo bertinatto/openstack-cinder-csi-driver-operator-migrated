@@ -7,9 +7,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "github.com/openshift/azure-disk-csi-driver-operator/pkg/generated/clientset/versioned"
-	internalinterfaces "github.com/openshift/azure-disk-csi-driver-operator/pkg/generated/informers/externalversions/internalinterfaces"
-	operator "github.com/openshift/azure-disk-csi-driver-operator/pkg/generated/informers/externalversions/operator"
+	versioned "github.com/openshift/openstack-cinder-csi-driver-operator/pkg/generated/clientset/versioned"
+	internalinterfaces "github.com/openshift/openstack-cinder-csi-driver-operator/pkg/generated/informers/externalversions/internalinterfaces"
+	operator "github.com/openshift/openstack-cinder-csi-driver-operator/pkg/generated/informers/externalversions/operator"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

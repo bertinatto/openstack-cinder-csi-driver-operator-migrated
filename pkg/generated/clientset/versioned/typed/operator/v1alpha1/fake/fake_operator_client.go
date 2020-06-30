@@ -3,7 +3,7 @@
 package fake
 
 import (
-	v1alpha1 "github.com/openshift/azure-disk-csi-driver-operator/pkg/generated/clientset/versioned/typed/operator/v1alpha1"
+	v1alpha1 "github.com/openshift/openstack-cinder-csi-driver-operator/pkg/generated/clientset/versioned/typed/operator/v1alpha1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )
@@ -12,8 +12,8 @@ type FakeCsiV1alpha1 struct {
 	*testing.Fake
 }
 
-func (c *FakeCsiV1alpha1) AzureDiskDrivers() v1alpha1.AzureDiskDriverInterface {
-	return &FakeAzureDiskDrivers{c}
+func (c *FakeCsiV1alpha1) OpenStackCinderDrivers() v1alpha1.OpenStackCinderDriverInterface {
+	return &FakeOpenStackCinderDrivers{c}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

@@ -5,7 +5,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/openshift/azure-disk-csi-driver-operator/pkg/apis/operator"
+	"github.com/openshift/openstack-cinder-csi-driver-operator/pkg/apis/operator"
 )
 
 // SchemeGroupVersion is group version used to register these objects
@@ -31,8 +31,8 @@ var (
 // Adds the list of known types to Scheme.
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
-		&AzureDiskDriver{},
-		&AzureDiskDriverList{},
+		&OpenStackCinderDriver{},
+		&OpenStackCinderDriverList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

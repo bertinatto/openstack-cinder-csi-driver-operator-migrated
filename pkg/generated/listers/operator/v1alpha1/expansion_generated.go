@@ -2,6 +2,6 @@
 
 package v1alpha1
 
-// AzureDiskDriverListerExpansion allows custom methods to be added to
-// AzureDiskDriverLister.
-type AzureDiskDriverListerExpansion interface{}
+// OpenStackCinderDriverListerExpansion allows custom methods to be added to
+// OpenStackCinderDriverLister.
+type OpenStackCinderDriverListerExpansion interface{}

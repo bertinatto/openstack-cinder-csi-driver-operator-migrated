@@ -15,14 +15,14 @@ import (
 	goc "github.com/openshift/library-go/pkg/operator/genericoperatorclient"
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
 
-	"github.com/openshift/azure-disk-csi-driver-operator/pkg/apis/operator/v1alpha1"
-	"github.com/openshift/azure-disk-csi-driver-operator/pkg/generated"
+	"github.com/openshift/openstack-cinder-csi-driver-operator/pkg/apis/operator/v1alpha1"
+	"github.com/openshift/openstack-cinder-csi-driver-operator/pkg/generated"
 )
 
 const (
-	operandName       = "azure-disk-csi-driver"
-	operandNamespace  = "openshift-azure-disk-csi-driver"
-	operatorNamespace = "openshift-azure-disk-csi-driver-operator"
+	operandName       = "openstack-cinder-csi-driver"
+	operandNamespace  = "openshift-openstack-cinder-csi-driver"
+	operatorNamespace = "openshift-openstack-cinder-csi-driver-operator"
 
 	resync = 20 * time.Minute
 )
@@ -34,7 +34,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 	kubeInformersForNamespaces := v1helpers.NewKubeInformersForNamespaces(kubeClient, "", operandNamespace, operatorNamespace)
 
 	// Create GenericOperatorclient. This is used by controllers created down below
-	gvr := v1alpha1.SchemeGroupVersion.WithResource("azurediskdrivers")
+	gvr := v1alpha1.SchemeGroupVersion.WithResource("openstackcinderdrivers")
 	operatorClient, dynamicInformers, err := goc.NewClusterScopedOperatorClient(controllerConfig.KubeConfig, gvr)
 	if err != nil {
 		return err
@@ -47,7 +47,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		operandName,
 		false,
 	).WithStaticResourcesController(
-		"AzureDiskDriverStaticResources",
+		"OpenStackCinderDriverStaticResources",
 		kubeClient,
 		kubeInformersForNamespaces,
 		generated.Asset,
@@ -69,7 +69,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 			"rbac/snapshotter_role.yaml",
 		},
 	).WithCSIDriverController(
-		"AzureDiskDriverController",
+		"OpenStackCinderDriverController",
 		operandName,
 		operandNamespace,
 		generated.MustAsset,

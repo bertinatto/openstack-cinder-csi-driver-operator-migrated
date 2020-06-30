@@ -1,7 +1,7 @@
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: azure-disk-external-provisioner-role
+  name: openstack-cinder-external-provisioner-role
 rules:
   - apiGroups: [""]
     resources: ["persistentvolumes"]

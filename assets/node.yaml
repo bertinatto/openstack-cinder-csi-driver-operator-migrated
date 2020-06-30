@@ -1,131 +1,114 @@
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: azure-disk-csi-driver-node
-  namespace: openshift-azure-disk-csi-driver
+  name: openstack-cinder-csi-driver-node
+  namespace: openshift-openstack-cinder-csi-driver
 spec:
   selector:
     matchLabels:
-      app: azure-disk-csi-driver-node
+      app: openstack-cinder-csi-driver-node
   template:
     metadata:
       labels:
-        app: azure-disk-csi-driver-node
+        app: openstack-cinder-csi-driver-node
     spec:
       hostNetwork: true
-      serviceAccount: azure-disk-csi-driver-node-sa
+      serviceAccount: openstack-cinder-csi-driver-node-sa
       priorityClassName: system-node-critical
       tolerations:
         - key: CriticalAddonsOnly
           operator: Exists
       containers:
         - name: csi-driver
-          image: mcr.microsoft.com/k8s/csi/azuredisk-csi:latest
-          args:
-            - "--v=5"
-            - "--endpoint=$(CSI_ENDPOINT)"
-            - "--nodeid=$(KUBE_NODE_NAME)"
-            - "--metrics-address=0.0.0.0:29605"
-          ports:
-            - containerPort: 29603
-              name: healthz
-              protocol: TCP
-            - containerPort: 29605
-              name: metrics
-              protocol: TCP
-          env:
-            - name: AZURE_CREDENTIAL_FILE
-              value: "/etc/kubernetes/cloud.conf"
-            - name: CSI_ENDPOINT
-              value: unix:///csi/csi.sock
-            - name: KUBE_NODE_NAME
-              valueFrom:
-                fieldRef:
-                  apiVersion: v1
-                  fieldPath: spec.nodeName
           securityContext:
             privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          image: docker.io/k8scloudprovider/cinder-csi-plugin:latest
+          args :
+            - /bin/cinder-csi-plugin
+            - "--nodeid=$(NODE_ID)"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--cloud-config=$(CLOUD_CONFIG)"
+          env:
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: CSI_ENDPOINT
+              value: unix://csi/csi.sock
+            - name: CLOUD_CONFIG
+              value: /etc/config/cloud.conf
+          imagePullPolicy: "IfNotPresent"
           volumeMounts:
-            - mountPath: /csi
-              name: socket-dir
-            - mountPath: /var/lib/kubelet/
-              mountPropagation: Bidirectional
-              name: mountpoint-dir
-            - mountPath: /etc/kubernetes/
+            - name: socket-dir
+              mountPath: /csi
+            - name: pods-mount-dir
+              mountPath: /var/lib/kubelet/pods
+              mountPropagation: "Bidirectional"
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet
+              mountPropagation: "Bidirectional"
+            - name: pods-cloud-data
+              mountPath: /var/lib/cloud/data
               readOnly: true
-              name: cloud-sa-volume
-            - mountPath: /var/lib/waagent/ManagedIdentity-Settings
+            - name: pods-probe-dir
+              mountPath: /dev
+              mountPropagation: "HostToContainer"
+            - name: secret-cinderplugin
+              mountPath: /etc/config
               readOnly: true
-              name: msi
-            - mountPath: /dev
-              name: device-dir
-            - mountPath: /sys/bus/scsi/devices
-              name: sys-devices-dir
-            - mountPath: /sys/class/scsi_host/
-              name: scsi-host-dir
-          resources:
-            limits:
-              cpu: 1
-              memory: 1Gi
-            requests:
-              cpu: 10m
-              memory: 20Mi
         - name: node-driver-registrar
-          image: mcr.microsoft.com/oss/kubernetes-csi/csi-node-driver-registrar:v1.2.0
+          image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
           args:
-            - --csi-address=$(ADDRESS)
-            - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
-            - --v=5
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)"
           lifecycle:
             preStop:
               exec:
-                command: ["/bin/sh", "-c", "rm -rf /registration/disk.csi.azure.com-reg.sock /csi/csi.sock"]
+                command: ["/bin/sh", "-c", "rm -rf /registration/cinder.csi.openstack.org /registration/cinder.csi.openstack.org-reg.sock"]
           env:
             - name: ADDRESS
               value: /csi/csi.sock
             - name: DRIVER_REG_SOCK_PATH
-              value: /var/lib/kubelet/plugins/disk.csi.azure.com/csi.sock
+              value: /var/lib/kubelet/plugins/cinder.csi.openstack.org/csi.sock
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
             - name: registration-dir
               mountPath: /registration
-          resources:
-            limits:
-              cpu: 1
-              memory: 1Gi
-            requests:
-              cpu: 10m
-              memory: 20Mi
       volumes:
-        - hostPath:
-            path: /var/lib/kubelet/plugins/disk.csi.azure.com
+        - name: socket-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/cinder.csi.openstack.org
             type: DirectoryOrCreate
-          name: socket-dir
-        - hostPath:
-            path: /var/lib/kubelet/
-            type: DirectoryOrCreate
-          name: mountpoint-dir
-        - hostPath:
+        - name: registration-dir
+          hostPath:
             path: /var/lib/kubelet/plugins_registry/
-            type: DirectoryOrCreate
-          name: registration-dir
-        - hostPath:
-            path: /etc/kubernetes/
             type: Directory
-          name: cloud-sa-volume
-        - hostPath:
-            path: /var/lib/waagent/ManagedIdentity-Settings
-          name: msi
-        - hostPath:
+        - name: kubelet-dir
+          hostPath:
+            path: /var/lib/kubelet
+            type: Directory
+        - name: pods-mount-dir
+          hostPath:
+            path: /var/lib/kubelet/pods
+            type: Directory
+        - name: pods-cloud-data
+          hostPath:
+            path: /var/lib/cloud/data
+            type: Directory
+        - name: pods-probe-dir
+          hostPath:
             path: /dev
             type: Directory
-          name: device-dir
-        - hostPath:
-            path: /sys/bus/scsi/devices
-            type: Directory
-          name: sys-devices-dir
-        - hostPath:
-            path: /sys/class/scsi_host/
-            type: Directory
-          name: scsi-host-dir
+        - name: secret-cinderplugin
+          secret:
+            secretName: cloud-config

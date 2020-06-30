@@ -13,8 +13,8 @@ include $(addprefix ./vendor/github.com/openshift/build-machinery-go/make/, \
 )
 
 # Codegen module needs setting these required variables
-CODEGEN_OUTPUT_PACKAGE :=github.com/openshift/azure-disk-csi-driver-operator/pkg/generated
-CODEGEN_API_PACKAGE :=github.com/openshift/azure-disk-csi-driver-operator/pkg/apis
+CODEGEN_OUTPUT_PACKAGE :=github.com/openshift/openstack-cinder-csi-driver-operator/pkg/generated
+CODEGEN_API_PACKAGE :=github.com/openshift/openstack-cinder-csi-driver-operator/pkg/apis
 CODEGEN_GROUPS_VERSION :=operator:v1alpha1
 
 define run-codegen
@@ -45,7 +45,7 @@ IMAGE_REGISTRY?=registry.svc.ci.openshift.org
 # $3 - Dockerfile path
 # $4 - context directory for image build
 # It will generate target "image-$(1)" for building the image and binding it as a prerequisite to target "images".
-$(call build-image,azure-disk-csi-driver-operator,$(IMAGE_REGISTRY)/ocp/4.5:azure-disk-csi-driver-operator,./Dockerfile.rhel7,.)
+$(call build-image,openstack-cinder-csi-driver-operator,$(IMAGE_REGISTRY)/ocp/4.5:openstack-cinder-csi-driver-operator,./Dockerfile.rhel7,.)
 
 # generate bindata targets
 # $0 - macro name
@@ -57,7 +57,7 @@ $(call build-image,azure-disk-csi-driver-operator,$(IMAGE_REGISTRY)/ocp/4.5:azur
 $(call add-bindata,generated,./assets/...,assets,generated,pkg/generated/bindata.go)
 
 clean:
-	$(RM) azure-disk-csi-driver-operator
+	$(RM) openstack-cinder-csi-driver-operator
 .PHONY: clean
 
 GO_TEST_PACKAGES :=./pkg/... ./cmd/...

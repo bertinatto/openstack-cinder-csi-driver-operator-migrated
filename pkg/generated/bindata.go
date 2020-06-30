@@ -2,7 +2,6 @@
 // sources:
 // assets/controller.yaml
 // assets/controller_sa.yaml
-// assets/credentials.yaml
 // assets/namespace.yaml
 // assets/node.yaml
 // assets/node_sa.yaml
@@ -74,177 +73,93 @@ func (fi bindataFileInfo) Sys() interface{} {
 var _controllerYaml = []byte(`kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: azure-disk-csi-driver-controller
-  namespace: openshift-azure-disk-csi-driver
+  name: openstack-cinder-csi-driver-controller
+  namespace: openshift-openstack-cinder-csi-driver
 spec:
   selector:
     matchLabels:
-      app: azure-disk-csi-driver-controller
-  serviceName: azure-disk-csi-driver-controller
+      app: openstack-cinder-csi-driver-controller
+  serviceName: openstack-cinder-csi-driver-controller
   replicas: 1
   template:
     metadata:
       labels:
-        app: azure-disk-csi-driver-controller
+        app: openstack-cinder-csi-driver-controller
     spec:
       hostNetwork: true
-      serviceAccount: azure-disk-csi-driver-controller-sa
+      serviceAccount: openstack-cinder-csi-driver-controller-sa
       priorityClassName: system-cluster-critical
       tolerations:
         - key: CriticalAddonsOnly
           operator: Exists
       containers:
-        - name: csi-driver
-          image: mcr.microsoft.com/k8s/csi/azuredisk-csi:latest
-          # image: centos
-          # command: ["/bin/sh"]
-          # args: ["-c", "while true; do echo $(date -u) >> /tmp/out.txt; sleep 5; done"]
-
-          args:
-            - "--v=5"
+      containers:
+        - name: cinder-csi-plugin
+          image: docker.io/k8scloudprovider/cinder-csi-plugin:latest
+          args :
+            - /bin/cinder-csi-plugin
+            - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"
-          ports:
-            - containerPort: 29602
-              name: healthz
-              protocol: TCP
-            - containerPort: 29604
-              name: metrics
-              protocol: TCP
-          livenessProbe:
-            failureThreshold: 5
-            httpGet:
-              path: /healthz
-              port: healthz
-            initialDelaySeconds: 30
-            timeoutSeconds: 10
-            periodSeconds: 30
+            - "--cloud-config=$(CLOUD_CONFIG)"
+            - "--cluster=$(CLUSTER_NAME)"
           env:
-            - name: AZURE_CREDENTIAL_FILE
-              value: "/etc/kubernetes/cloud.conf"
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
             - name: CSI_ENDPOINT
-              value: unix:///csi/csi.sock
+              value: unix://csi/csi.sock
+            - name: CLOUD_CONFIG
+              value: /etc/config/cloud.conf
+            - name: CLUSTER_NAME
+              value: kubernetes
+          imagePullPolicy: "IfNotPresent"
           volumeMounts:
-            - mountPath: /csi
-              name: socket-dir
-            - mountPath: /etc/kubernetes/
+            - name: socket-dir
+              mountPath: /csi
+            - name: secret-cinderplugin
+              mountPath: /etc/config
               readOnly: true
-              name: cloud-sa-volume
-            - mountPath: /var/lib/waagent/ManagedIdentity-Settings
-              readOnly: true
-              name: msi
-          resources:
-            limits:
-              cpu: 1
-              memory: 1Gi
-            requests:
-              cpu: 10m
-              memory: 20Mi
         - name: csi-provisioner
-          image: mcr.microsoft.com/oss/kubernetes-csi/csi-provisioner:v1.5.0
+          image: quay.io/k8scsi/csi-provisioner:v1.3.0
           args:
-            - "--feature-gates=Topology=true"
             - "--csi-address=$(ADDRESS)"
-            - "--v=5"
-            - "--timeout=120s"
-            - "--enable-leader-election"
-            - "--leader-election-type=leases"
           env:
             - name: ADDRESS
-              value: /csi/csi.sock
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          imagePullPolicy: "IfNotPresent"
           volumeMounts:
-            - mountPath: /csi
-              name: socket-dir
-          resources:
-            limits:
-              cpu: 1
-              memory: 1Gi
-            requests:
-              cpu: 10m
-              memory: 20Mi
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: csi-attacher
-          image: mcr.microsoft.com/oss/kubernetes-csi/csi-attacher:v2.2.0
+          image: quay.io/k8scsi/csi-attacher:v1.2.0
           args:
-            - "-v=5"
-            - "-csi-address=$(ADDRESS)"
-            - "-timeout=120s"
-            - "-leader-election"
-          env:
-            - name: ADDRESS
-              value: /csi/csi.sock
-          volumeMounts:
-            - mountPath: /csi
-              name: socket-dir
-          resources:
-            limits:
-              cpu: 1
-              memory: 1Gi
-            requests:
-              cpu: 10m
-              memory: 20Mi
-        - name: csi-resizer
-          image: mcr.microsoft.com/oss/kubernetes-csi/csi-resizer:v0.3.0
-          args:
-            - "-csi-address=$(ADDRESS)"
-            - "-v=5"
-            - "-leader-election"
-          env:
-            - name: ADDRESS
-              value: /csi/csi.sock
-          volumeMounts:
-            - name: socket-dir
-              mountPath: /csi
-          resources:
-            limits:
-              cpu: 1
-              memory: 1Gi
-            requests:
-              cpu: 10m
-              memory: 20Mi
-        - name: csi-snapshotter
-          image: mcr.microsoft.com/oss/kubernetes-csi/csi-snapshotter:v2.0.1
-          args:
-            - "-csi-address=$(ADDRESS)"
-            - "-leader-election"
             - "--v=5"
+            - "--csi-address=$(ADDRESS)"
           env:
             - name: ADDRESS
-              value: /csi/csi.sock
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
-              mountPath: /csi
-          resources:
-            limits:
-              cpu: 1
-              memory: 1Gi
-            requests:
-              cpu: 10m
-              memory: 20Mi
-        - name: liveness-probe
-          image: mcr.microsoft.com/oss/kubernetes-csi/livenessprobe:v1.1.0
+              mountPath: /var/lib/csi/sockets/pluginproxy/
+        - name: csi-snapshotter
+          image: quay.io/k8scsi/csi-snapshotter:v1.2.0
           args:
-            - --csi-address=/csi/csi.sock
-            - --connection-timeout=3s
-            - --health-port=29602
-            - --v=5
+            - "--csi-address=$(ADDRESS)"
+          env:
+            - name: ADDRESS
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          imagePullPolicy: Always
           volumeMounts:
-            - name: socket-dir
-              mountPath: /csi
-          resources:
-            limits:
-              cpu: 1
-              memory: 1Gi
-            requests:
-              cpu: 10m
-              memory: 20Mi
+            - mountPath: /var/lib/csi/sockets/pluginproxy/
+              name: socket-dir
       volumes:
         - name: socket-dir
-          emptyDir: {}
-        - name: cloud-sa-volume
-          hostPath:
-            path: /etc/kubernetes/
-        - name: msi
-          hostPath:
-            path: /var/lib/waagent/ManagedIdentity-Settings
+          emptyDir:
+        - name: secret-cinderplugin
+          secret:
+            secretName: cloud-config
 `)
 
 func controllerYamlBytes() ([]byte, error) {
@@ -265,8 +180,8 @@ func controllerYaml() (*asset, error) {
 var _controller_saYaml = []byte(`apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: azure-disk-csi-driver-controller-sa
-  namespace: openshift-azure-disk-csi-driver
+  name: openstack-cinder-csi-driver-controller-sa
+  namespace: openshift-openstack-cinder-csi-driver
 `)
 
 func controller_saYamlBytes() ([]byte, error) {
@@ -284,42 +199,10 @@ func controller_saYaml() (*asset, error) {
 	return a, nil
 }
 
-var _credentialsYaml = []byte(`# TODO: remove, this is not used anywhere
-apiVersion: cloudcredential.openshift.io/v1
-kind: CredentialsRequest
-metadata:
-  name: openshift-azure-disk-csi-driver
-  namespace: openshift-cloud-credential-operator
-spec:
-  secretRef:
-    name: azure-cloud-credentials
-    namespace: openshift-azure-disk-csi-driver
-  providerSpec:
-    apiVersion: cloudcredential.openshift.io/v1
-    kind: AzureProviderSpec
-    roleBindings:
-    - role: Contributor
-`)
-
-func credentialsYamlBytes() ([]byte, error) {
-	return _credentialsYaml, nil
-}
-
-func credentialsYaml() (*asset, error) {
-	bytes, err := credentialsYamlBytes()
-	if err != nil {
-		return nil, err
-	}
-
-	info := bindataFileInfo{name: "credentials.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
-	a := &asset{bytes: bytes, info: info}
-	return a, nil
-}
-
 var _namespaceYaml = []byte(`apiVersion: v1
 kind: Namespace
 metadata:
-  name: openshift-azure-disk-csi-driver
+  name: openshift-openstack-cinder-csi-driver
 `)
 
 func namespaceYamlBytes() ([]byte, error) {
@@ -340,134 +223,117 @@ func namespaceYaml() (*asset, error) {
 var _nodeYaml = []byte(`kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: azure-disk-csi-driver-node
-  namespace: openshift-azure-disk-csi-driver
+  name: openstack-cinder-csi-driver-node
+  namespace: openshift-openstack-cinder-csi-driver
 spec:
   selector:
     matchLabels:
-      app: azure-disk-csi-driver-node
+      app: openstack-cinder-csi-driver-node
   template:
     metadata:
       labels:
-        app: azure-disk-csi-driver-node
+        app: openstack-cinder-csi-driver-node
     spec:
       hostNetwork: true
-      serviceAccount: azure-disk-csi-driver-node-sa
+      serviceAccount: openstack-cinder-csi-driver-node-sa
       priorityClassName: system-node-critical
       tolerations:
         - key: CriticalAddonsOnly
           operator: Exists
       containers:
         - name: csi-driver
-          image: mcr.microsoft.com/k8s/csi/azuredisk-csi:latest
-          args:
-            - "--v=5"
-            - "--endpoint=$(CSI_ENDPOINT)"
-            - "--nodeid=$(KUBE_NODE_NAME)"
-            - "--metrics-address=0.0.0.0:29605"
-          ports:
-            - containerPort: 29603
-              name: healthz
-              protocol: TCP
-            - containerPort: 29605
-              name: metrics
-              protocol: TCP
-          env:
-            - name: AZURE_CREDENTIAL_FILE
-              value: "/etc/kubernetes/cloud.conf"
-            - name: CSI_ENDPOINT
-              value: unix:///csi/csi.sock
-            - name: KUBE_NODE_NAME
-              valueFrom:
-                fieldRef:
-                  apiVersion: v1
-                  fieldPath: spec.nodeName
           securityContext:
             privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          image: docker.io/k8scloudprovider/cinder-csi-plugin:latest
+          args :
+            - /bin/cinder-csi-plugin
+            - "--nodeid=$(NODE_ID)"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--cloud-config=$(CLOUD_CONFIG)"
+          env:
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: CSI_ENDPOINT
+              value: unix://csi/csi.sock
+            - name: CLOUD_CONFIG
+              value: /etc/config/cloud.conf
+          imagePullPolicy: "IfNotPresent"
           volumeMounts:
-            - mountPath: /csi
-              name: socket-dir
-            - mountPath: /var/lib/kubelet/
-              mountPropagation: Bidirectional
-              name: mountpoint-dir
-            - mountPath: /etc/kubernetes/
+            - name: socket-dir
+              mountPath: /csi
+            - name: pods-mount-dir
+              mountPath: /var/lib/kubelet/pods
+              mountPropagation: "Bidirectional"
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet
+              mountPropagation: "Bidirectional"
+            - name: pods-cloud-data
+              mountPath: /var/lib/cloud/data
               readOnly: true
-              name: cloud-sa-volume
-            - mountPath: /var/lib/waagent/ManagedIdentity-Settings
+            - name: pods-probe-dir
+              mountPath: /dev
+              mountPropagation: "HostToContainer"
+            - name: secret-cinderplugin
+              mountPath: /etc/config
               readOnly: true
-              name: msi
-            - mountPath: /dev
-              name: device-dir
-            - mountPath: /sys/bus/scsi/devices
-              name: sys-devices-dir
-            - mountPath: /sys/class/scsi_host/
-              name: scsi-host-dir
-          resources:
-            limits:
-              cpu: 1
-              memory: 1Gi
-            requests:
-              cpu: 10m
-              memory: 20Mi
         - name: node-driver-registrar
-          image: mcr.microsoft.com/oss/kubernetes-csi/csi-node-driver-registrar:v1.2.0
+          image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
           args:
-            - --csi-address=$(ADDRESS)
-            - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
-            - --v=5
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)"
           lifecycle:
             preStop:
               exec:
-                command: ["/bin/sh", "-c", "rm -rf /registration/disk.csi.azure.com-reg.sock /csi/csi.sock"]
+                command: ["/bin/sh", "-c", "rm -rf /registration/cinder.csi.openstack.org /registration/cinder.csi.openstack.org-reg.sock"]
           env:
             - name: ADDRESS
               value: /csi/csi.sock
             - name: DRIVER_REG_SOCK_PATH
-              value: /var/lib/kubelet/plugins/disk.csi.azure.com/csi.sock
+              value: /var/lib/kubelet/plugins/cinder.csi.openstack.org/csi.sock
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
             - name: registration-dir
               mountPath: /registration
-          resources:
-            limits:
-              cpu: 1
-              memory: 1Gi
-            requests:
-              cpu: 10m
-              memory: 20Mi
       volumes:
-        - hostPath:
-            path: /var/lib/kubelet/plugins/disk.csi.azure.com
+        - name: socket-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/cinder.csi.openstack.org
             type: DirectoryOrCreate
-          name: socket-dir
-        - hostPath:
-            path: /var/lib/kubelet/
-            type: DirectoryOrCreate
-          name: mountpoint-dir
-        - hostPath:
+        - name: registration-dir
+          hostPath:
             path: /var/lib/kubelet/plugins_registry/
-            type: DirectoryOrCreate
-          name: registration-dir
-        - hostPath:
-            path: /etc/kubernetes/
             type: Directory
-          name: cloud-sa-volume
-        - hostPath:
-            path: /var/lib/waagent/ManagedIdentity-Settings
-          name: msi
-        - hostPath:
+        - name: kubelet-dir
+          hostPath:
+            path: /var/lib/kubelet
+            type: Directory
+        - name: pods-mount-dir
+          hostPath:
+            path: /var/lib/kubelet/pods
+            type: Directory
+        - name: pods-cloud-data
+          hostPath:
+            path: /var/lib/cloud/data
+            type: Directory
+        - name: pods-probe-dir
+          hostPath:
             path: /dev
             type: Directory
-          name: device-dir
-        - hostPath:
-            path: /sys/bus/scsi/devices
-            type: Directory
-          name: sys-devices-dir
-        - hostPath:
-            path: /sys/class/scsi_host/
-            type: Directory
-          name: scsi-host-dir
+        - name: secret-cinderplugin
+          secret:
+            secretName: cloud-config
 `)
 
 func nodeYamlBytes() ([]byte, error) {
@@ -488,8 +354,8 @@ func nodeYaml() (*asset, error) {
 var _node_saYaml = []byte(`apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: azure-disk-csi-driver-node-sa
-  namespace: openshift-azure-disk-csi-driver
+  name: openstack-cinder-csi-driver-node-sa
+  namespace: openshift-openstack-cinder-csi-driver
 `)
 
 func node_saYamlBytes() ([]byte, error) {
@@ -510,14 +376,14 @@ func node_saYaml() (*asset, error) {
 var _rbacAttacher_bindingYaml = []byte(`kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: azure-disk-csi-attacher-binding
+  name: openstack-cinder-csi-attacher-binding
 subjects:
   - kind: ServiceAccount
-    name: azure-disk-csi-driver-controller-sa
-    namespace: openshift-azure-disk-csi-driver
+    name: openstack-cinder-csi-driver-controller-sa
+    namespace: openshift-openstack-cinder-csi-driver
 roleRef:
   kind: ClusterRole
-  name: azure-disk-external-attacher-role
+  name: openstack-cinder-external-attacher-role
   apiGroup: rbac.authorization.k8s.io
 `)
 
@@ -539,7 +405,7 @@ func rbacAttacher_bindingYaml() (*asset, error) {
 var _rbacAttacher_roleYaml = []byte(`kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: azure-disk-external-attacher-role
+  name: openstack-cinder-external-attacher-role
 rules:
   - apiGroups: [""]
     resources: ["persistentvolumes"]
@@ -573,14 +439,14 @@ func rbacAttacher_roleYaml() (*asset, error) {
 var _rbacController_privileged_bindingYaml = []byte(`kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: azure-disk-controller-privileged-binding
+  name: openstack-cinder-controller-privileged-binding
 subjects:
   - kind: ServiceAccount
-    name: azure-disk-csi-driver-controller-sa
-    namespace: openshift-azure-disk-csi-driver
+    name: openstack-cinder-csi-driver-controller-sa
+    namespace: openshift-openstack-cinder-csi-driver
 roleRef:
   kind: ClusterRole
-  name: azure-disk-privileged-role
+  name: openstack-cinder-privileged-role
   apiGroup: rbac.authorization.k8s.io
 `)
 
@@ -602,14 +468,14 @@ func rbacController_privileged_bindingYaml() (*asset, error) {
 var _rbacNode_privileged_bindingYaml = []byte(`kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: azure-disk-node-privileged-binding
+  name: openstack-cinder-node-privileged-binding
 subjects:
   - kind: ServiceAccount
-    name: azure-disk-csi-driver-node-sa
-    namespace: openshift-azure-disk-csi-driver
+    name: openstack-cinder-csi-driver-node-sa
+    namespace: openshift-openstack-cinder-csi-driver
 roleRef:
   kind: ClusterRole
-  name: azure-disk-privileged-role
+  name: openstack-cinder-privileged-role
   apiGroup: rbac.authorization.k8s.io
 `)
 
@@ -633,7 +499,7 @@ var _rbacPrivileged_roleYaml = []byte(`# TODO: create custom SCC with things tha
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: azure-disk-privileged-role
+  name: openstack-cinder-privileged-role
 rules:
   - apiGroups: ["security.openshift.io"]
     resourceNames: ["privileged"]
@@ -659,14 +525,14 @@ func rbacPrivileged_roleYaml() (*asset, error) {
 var _rbacProvisioner_bindingYaml = []byte(`kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: azure-disk-csi-provisioner-binding
+  name: openstack-cinder-csi-provisioner-binding
 subjects:
   - kind: ServiceAccount
-    name: azure-disk-csi-driver-controller-sa
-    namespace: openshift-azure-disk-csi-driver
+    name: openstack-cinder-csi-driver-controller-sa
+    namespace: openshift-openstack-cinder-csi-driver
 roleRef:
   kind: ClusterRole
-  name: azure-disk-external-provisioner-role
+  name: openstack-cinder-external-provisioner-role
   apiGroup: rbac.authorization.k8s.io
 `)
 
@@ -688,7 +554,7 @@ func rbacProvisioner_bindingYaml() (*asset, error) {
 var _rbacProvisioner_roleYaml = []byte(`kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: azure-disk-external-provisioner-role
+  name: openstack-cinder-external-provisioner-role
 rules:
   - apiGroups: [""]
     resources: ["persistentvolumes"]
@@ -728,14 +594,14 @@ func rbacProvisioner_roleYaml() (*asset, error) {
 var _rbacResizer_bindingYaml = []byte(`kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: azure-disk-csi-resizer-binding
+  name: openstack-cinder-csi-resizer-binding
 subjects:
   - kind: ServiceAccount
-    name: azure-disk-csi-driver-controller-sa
-    namespace: openshift-azure-disk-csi-driver
+    name: openstack-cinder-csi-driver-controller-sa
+    namespace: openshift-openstack-cinder-csi-driver
 roleRef:
   kind: ClusterRole
-  name: azure-disk-external-resizer-role
+  name: openstack-cinder-external-resizer-role
   apiGroup: rbac.authorization.k8s.io
 `)
 
@@ -757,7 +623,7 @@ func rbacResizer_bindingYaml() (*asset, error) {
 var _rbacResizer_roleYaml = []byte(`kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: azure-disk-external-resizer-role
+  name: openstack-cinder-external-resizer-role
 rules:
   - apiGroups: [""]
     resources: ["persistentvolumes"]
@@ -794,14 +660,14 @@ func rbacResizer_roleYaml() (*asset, error) {
 var _rbacSnapshotter_bindingYaml = []byte(`kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: azure-disk-csi-snapshotter-binding
+  name: openstack-cinder-csi-snapshotter-binding
 subjects:
   - kind: ServiceAccount
-    name: azure-disk-csi-driver-controller-sa
-    namespace: openshift-azure-disk-csi-driver
+    name: openstack-cinder-csi-driver-controller-sa
+    namespace: openshift-openstack-cinder-csi-driver
 roleRef:
   kind: ClusterRole
-  name: azure-disk-external-snapshotter-role
+  name: openstack-cinder-external-snapshotter-role
   apiGroup: rbac.authorization.k8s.io
 `)
 
@@ -823,7 +689,7 @@ func rbacSnapshotter_bindingYaml() (*asset, error) {
 var _rbacSnapshotter_roleYaml = []byte(`kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: azure-disk-external-snapshotter-role
+  name: openstack-cinder-external-snapshotter-role
 rules:
 - apiGroups: [""]
   resources: ["persistentvolumes"]
@@ -878,12 +744,9 @@ func rbacSnapshotter_roleYaml() (*asset, error) {
 var _storageclassYaml = []byte(`apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: managed-csi
-provisioner: disk.csi.azure.com
-parameters:
-  skuname: StandardSSD_LRS  # alias: storageaccounttype, available values: Standard_LRS, Premium_LRS, StandardSSD_LRS, UltraSSD_LRS
-reclaimPolicy: Delete
-volumeBindingMode: WaitForFirstConsumer  # make sure ` + "`" + `volumeBindingMode` + "`" + ` is set as ` + "`" + `WaitForFirstConsumer` + "`" + `
+  name: cinder-ci
+provisioner: cinder.csi.openstack.org
+volumeBindingMode: WaitForFirstConsumer
 `)
 
 func storageclassYamlBytes() ([]byte, error) {
@@ -955,7 +818,6 @@ func AssetNames() []string {
 var _bindata = map[string]func() (*asset, error){
 	"controller.yaml":                         controllerYaml,
 	"controller_sa.yaml":                      controller_saYaml,
-	"credentials.yaml":                        credentialsYaml,
 	"namespace.yaml":                          namespaceYaml,
 	"node.yaml":                               nodeYaml,
 	"node_sa.yaml":                            node_saYaml,
@@ -1016,7 +878,6 @@ type bintree struct {
 var _bintree = &bintree{nil, map[string]*bintree{
 	"controller.yaml":    {controllerYaml, map[string]*bintree{}},
 	"controller_sa.yaml": {controller_saYaml, map[string]*bintree{}},
-	"credentials.yaml":   {credentialsYaml, map[string]*bintree{}},
 	"namespace.yaml":     {namespaceYaml, map[string]*bintree{}},
 	"node.yaml":          {nodeYaml, map[string]*bintree{}},
 	"node_sa.yaml":       {node_saYaml, map[string]*bintree{}},

@@ -12,4 +12,4 @@
 *.out
 
 _output
-azure-disk-csi-driver-operator
+openstack-cinder-csi-driver-operator
