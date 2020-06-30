@@ -22,9 +22,9 @@ spec:
           operator: Exists
       containers:
       containers:
-        - name: cinder-csi-plugin
+        - name: csi-driver
           image: docker.io/k8scloudprovider/cinder-csi-plugin:latest
-          args :
+          args:
             - /bin/cinder-csi-plugin
             - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"
@@ -49,9 +49,10 @@ spec:
               mountPath: /etc/config
               readOnly: true
         - name: csi-provisioner
-          image: quay.io/k8scsi/csi-provisioner:v1.3.0
+          image: quay.io/k8scsi/csi-provisioner:v1.6.0
           args:
             - "--csi-address=$(ADDRESS)"
+            - "--timeout=3m"
           env:
             - name: ADDRESS
               value: /var/lib/csi/sockets/pluginproxy/csi.sock
@@ -60,9 +61,20 @@ spec:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: csi-attacher
-          image: quay.io/k8scsi/csi-attacher:v1.2.0
+          image: quay.io/k8scsi/csi-attacher:v2.2.0
           args:
-            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--timeout=3m"
+          env:
+            - name: ADDRESS
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
+        - name: csi-resizer
+          image: quay.io/k8scsi/csi-resizer:v0.4.0
+          args:
             - "--csi-address=$(ADDRESS)"
           env:
             - name: ADDRESS
@@ -72,7 +84,7 @@ spec:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: csi-snapshotter
-          image: quay.io/k8scsi/csi-snapshotter:v1.2.0
+          image: quay.io/k8scsi/csi-snapshotter:v1.2.2
           args:
             - "--csi-address=$(ADDRESS)"
           env:
