@@ -2,6 +2,7 @@
 // sources:
 // assets/controller.yaml
 // assets/controller_sa.yaml
+// assets/credentials.yaml
 // assets/namespace.yaml
 // assets/node.yaml
 // assets/node_sa.yaml
@@ -195,6 +196,35 @@ func controller_saYaml() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "controller_sa.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _credentialsYaml = []byte(`apiVersion: cloudcredential.openshift.io/v1
+kind: CredentialsRequest
+metadata:
+  name: openshift-openstack-cinder-csi-driver
+  namespace: openshift-cloud-credential-operator
+spec:
+  secretRef:
+    name: openstack-cloud-credentials
+    namespace: openshift-openstack-cinder-csi-driver
+  providerSpec:
+    apiVersion: cloudcredential.openshift.io/v1
+    kind: OpenStackProviderSpec
+`)
+
+func credentialsYamlBytes() ([]byte, error) {
+	return _credentialsYaml, nil
+}
+
+func credentialsYaml() (*asset, error) {
+	bytes, err := credentialsYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "credentials.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -818,6 +848,7 @@ func AssetNames() []string {
 var _bindata = map[string]func() (*asset, error){
 	"controller.yaml":                         controllerYaml,
 	"controller_sa.yaml":                      controller_saYaml,
+	"credentials.yaml":                        credentialsYaml,
 	"namespace.yaml":                          namespaceYaml,
 	"node.yaml":                               nodeYaml,
 	"node_sa.yaml":                            node_saYaml,
@@ -878,6 +909,7 @@ type bintree struct {
 var _bintree = &bintree{nil, map[string]*bintree{
 	"controller.yaml":    {controllerYaml, map[string]*bintree{}},
 	"controller_sa.yaml": {controller_saYaml, map[string]*bintree{}},
+	"credentials.yaml":   {credentialsYaml, map[string]*bintree{}},
 	"namespace.yaml":     {namespaceYaml, map[string]*bintree{}},
 	"node.yaml":          {nodeYaml, map[string]*bintree{}},
 	"node_sa.yaml":       {node_saYaml, map[string]*bintree{}},

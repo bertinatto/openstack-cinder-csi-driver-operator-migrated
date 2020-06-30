@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	// dynamicclient "k8s.io/client-go/dynamic"
+	dynamicclient "k8s.io/client-go/dynamic"
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
@@ -29,7 +29,7 @@ const (
 
 func RunOperator(ctx context.Context, controllerConfig *controllercmd.ControllerContext) error {
 	// Create clientsets and informers
-	// dynamicClient := dynamicclient.NewForConfigOrDie(rest.AddUserAgent(controllerConfig.KubeConfig, "dynamic-client"))
+	dynamicClient := dynamicclient.NewForConfigOrDie(rest.AddUserAgent(controllerConfig.KubeConfig, "dynamic-client"))
 	kubeClient := kubeclient.NewForConfigOrDie(rest.AddUserAgent(controllerConfig.KubeConfig, "kube-client"))
 	kubeInformersForNamespaces := v1helpers.NewKubeInformersForNamespaces(kubeClient, "", operandNamespace, operatorNamespace)
 
@@ -75,6 +75,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		generated.MustAsset,
 		kubeClient,
 		kubeInformersForNamespaces.InformersFor(operandNamespace),
+		csicontrollerset.WithCloudCredentials(dynamicClient, "credentials.yaml"),
 		csicontrollerset.WithControllerService("controller.yaml"),
 		csicontrollerset.WithNodeService("node.yaml"),
 	)
