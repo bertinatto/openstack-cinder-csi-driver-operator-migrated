@@ -3,6 +3,7 @@
 // assets/controller.yaml
 // assets/controller_sa.yaml
 // assets/credentials.yaml
+// assets/csidriver.yaml
 // assets/namespace.yaml
 // assets/node.yaml
 // assets/node_sa.yaml
@@ -111,7 +112,7 @@ spec:
             - name: CSI_ENDPOINT
               value: unix://csi/csi.sock
             - name: CLOUD_CONFIG
-              value: /etc/config/cloud.conf
+              value: /etc/kubernetes/clouds.conf
             - name: CLUSTER_NAME
               value: kubernetes
           imagePullPolicy: "IfNotPresent"
@@ -119,7 +120,7 @@ spec:
             - name: socket-dir
               mountPath: /csi
             - name: secret-cinderplugin
-              mountPath: /etc/config
+              mountPath: /etc/kubernetes
               readOnly: true
         - name: csi-provisioner
           image: quay.io/k8scsi/csi-provisioner:v1.6.0
@@ -172,7 +173,10 @@ spec:
           emptyDir:
         - name: secret-cinderplugin
           secret:
-            secretName: cloud-config
+            secretName: openstack-cloud-credentials
+            items:
+              - key: clouds.conf
+                path: clouds.conf
 `)
 
 func controllerYamlBytes() ([]byte, error) {
@@ -241,6 +245,33 @@ func credentialsYaml() (*asset, error) {
 	return a, nil
 }
 
+var _csidriverYaml = []byte(`apiVersion: storage.k8s.io/v1beta1
+kind: CSIDriver
+metadata:
+  name: cinder.csi.openstack.org
+spec:
+  attachRequired: true
+  podInfoOnMount: true
+  volumeLifecycleModes:
+  - Persistent
+  - Ephemeral
+`)
+
+func csidriverYamlBytes() ([]byte, error) {
+	return _csidriverYaml, nil
+}
+
+func csidriverYaml() (*asset, error) {
+	bytes, err := csidriverYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "csidriver.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
 var _namespaceYaml = []byte(`apiVersion: v1
 kind: Namespace
 metadata:
@@ -303,7 +334,7 @@ spec:
             - name: CSI_ENDPOINT
               value: unix://csi/csi.sock
             - name: CLOUD_CONFIG
-              value: /etc/config/cloud.conf
+              value: /etc/kubernetes/clouds.conf
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
@@ -314,14 +345,14 @@ spec:
             - name: kubelet-dir
               mountPath: /var/lib/kubelet
               mountPropagation: "Bidirectional"
-            - name: pods-cloud-data
-              mountPath: /var/lib/cloud/data
-              readOnly: true
+            # - name: pods-cloud-data
+              # mountPath: /var/lib/cloud/data
+              # readOnly: true
             - name: pods-probe-dir
               mountPath: /dev
               mountPropagation: "HostToContainer"
             - name: secret-cinderplugin
-              mountPath: /etc/config
+              mountPath: /etc/kubernetes
               readOnly: true
         - name: node-driver-registrar
           image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
@@ -365,17 +396,20 @@ spec:
           hostPath:
             path: /var/lib/kubelet/pods
             type: Directory
-        - name: pods-cloud-data
-          hostPath:
-            path: /var/lib/cloud/data
-            type: Directory
+        # - name: pods-cloud-data
+          # hostPath:
+            # path: /var/lib/cloud/data
+            # type: Directory
         - name: pods-probe-dir
           hostPath:
             path: /dev
             type: Directory
         - name: secret-cinderplugin
           secret:
-            secretName: cloud-config
+            secretName: openstack-cloud-credentials
+            items:
+              - key: clouds.conf
+                path: clouds.conf
 `)
 
 func nodeYamlBytes() ([]byte, error) {
@@ -786,7 +820,7 @@ func rbacSnapshotter_roleYaml() (*asset, error) {
 var _storageclassYaml = []byte(`apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: cinder-ci
+  name: standard-csi
 provisioner: cinder.csi.openstack.org
 volumeBindingMode: WaitForFirstConsumer
 `)
@@ -861,6 +895,7 @@ var _bindata = map[string]func() (*asset, error){
 	"controller.yaml":                         controllerYaml,
 	"controller_sa.yaml":                      controller_saYaml,
 	"credentials.yaml":                        credentialsYaml,
+	"csidriver.yaml":                          csidriverYaml,
 	"namespace.yaml":                          namespaceYaml,
 	"node.yaml":                               nodeYaml,
 	"node_sa.yaml":                            node_saYaml,
@@ -922,6 +957,7 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"controller.yaml":    {controllerYaml, map[string]*bintree{}},
 	"controller_sa.yaml": {controller_saYaml, map[string]*bintree{}},
 	"credentials.yaml":   {credentialsYaml, map[string]*bintree{}},
+	"csidriver.yaml":     {csidriverYaml, map[string]*bintree{}},
 	"namespace.yaml":     {namespaceYaml, map[string]*bintree{}},
 	"node.yaml":          {nodeYaml, map[string]*bintree{}},
 	"node_sa.yaml":       {node_saYaml, map[string]*bintree{}},
