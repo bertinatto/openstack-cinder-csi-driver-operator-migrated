@@ -245,7 +245,7 @@ func credentialsYaml() (*asset, error) {
 	return a, nil
 }
 
-var _csidriverYaml = []byte(`apiVersion: storage.k8s.io/v1beta1
+var _csidriverYaml = []byte(`apiVersion: storage.k8s.io/v1
 kind: CSIDriver
 metadata:
   name: cinder.csi.openstack.org
