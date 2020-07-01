@@ -1,0 +1,12 @@
+{
+  "apiVersion": "csi.openshift.io/v1alpha1",
+  "kind": "OpenStackCinderDriver",
+  "metadata": {
+    "name": "cluster"
+  },
+  "spec": {
+    "managementState": "Managed",
+    "operatorLogLevel": "Trace",
+    "logLevel": "Trace"
+  }
+}
